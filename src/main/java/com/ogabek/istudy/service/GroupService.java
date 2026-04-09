@@ -124,16 +124,6 @@ public class GroupService {
             group.setDaysOfWeek(String.join(",", request.getDaysOfWeek()));
         }
 
-        if (request.getStudentIds() != null) {
-            Set<Student> students = new HashSet<>();
-            for (Long studentId : request.getStudentIds()) {
-                Student student = studentRepository.findById(studentId)
-                        .orElseThrow(() -> new RuntimeException("Student not found with id: " + studentId));
-                students.add(student);
-            }
-            group.setStudents(students);
-        }
-
         Group savedGroup = groupRepository.save(group);
 
         Group groupWithRelations = groupRepository.findByIdWithAllRelations(savedGroup.getId())
