@@ -45,6 +45,25 @@ public interface StudentRepository extends JpaRepository<Student, Long> {
         @Query("SELECT s FROM Student s LEFT JOIN FETCH s.branch WHERE s.branch.id = :branchId AND s.deleted = false ORDER BY s.lastName ASC, s.firstName ASC")
         List<Student> findByBranchIdWithBranch(@Param("branchId") Long branchId);
 
+        // Bulk: [studentId, totalPaid, count] for a given month
+        @Query("SELECT p.student.id, SUM(p.amount), COUNT(p) " +
+                "FROM Payment p " +
+                "WHERE p.student.branch.id = :branchId " +
+                "AND p.paymentYear = :year AND p.paymentMonth = :month " +
+                "GROUP BY p.student.id")
+        List<Object[]> getMonthlyPaymentDataForBranch(@Param("branchId") Long branchId,
+                        @Param("year") int year, @Param("month") int month);
+
+        // Bulk: [studentId, lastPaymentDate] all-time
+        @Query("SELECT p.student.id, MAX(p.createdAt) FROM Payment p " +
+                "WHERE p.student.branch.id = :branchId GROUP BY p.student.id")
+        List<Object[]> getLastPaymentDatesForBranch(@Param("branchId") Long branchId);
+
+        // Bulk: [studentId, expectedPayment] = sum of group prices per student
+        @Query("SELECT s.id, SUM(g.price) FROM Group g JOIN g.students s " +
+                "WHERE g.branch.id = :branchId AND g.deleted = false GROUP BY s.id")
+        List<Object[]> getExpectedPaymentsForBranch(@Param("branchId") Long branchId);
+
         boolean existsByBranchIdAndFirstNameAndLastNameAndPhoneNumberAndDeletedFalse(Long branchId, String firstName,
                         String lastName, String phoneNumber);
 }

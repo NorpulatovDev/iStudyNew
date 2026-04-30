@@ -146,6 +146,23 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
                                                     @Param("year") int year,
                                                     @Param("month") int month);
 
+    // Bulk: [studentId, groupId, totalPaid] for a given month
+    @Query("SELECT p.student.id, p.group.id, SUM(p.amount) " +
+            "FROM Payment p " +
+            "WHERE p.branch.id = :branchId " +
+            "AND p.paymentYear = :year AND p.paymentMonth = :month " +
+            "GROUP BY p.student.id, p.group.id")
+    List<Object[]> getPaymentTotalsPerStudentGroupForMonth(@Param("branchId") Long branchId,
+                                                           @Param("year") int year,
+                                                           @Param("month") int month);
+
+    // Bulk: [studentId, groupId, totalPaid] all-time
+    @Query("SELECT p.student.id, p.group.id, SUM(p.amount) " +
+            "FROM Payment p " +
+            "WHERE p.branch.id = :branchId " +
+            "GROUP BY p.student.id, p.group.id")
+    List<Object[]> getAllPaymentTotalsPerStudentGroupForBranch(@Param("branchId") Long branchId);
+
     @Modifying
     @Query("DELETE FROM Payment p WHERE p.group.id = :groupId")
     void deleteByGroupId(@Param("groupId") Long groupId);

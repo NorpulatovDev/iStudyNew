@@ -18,6 +18,13 @@ public interface GroupRepository extends JpaRepository<Group, Long> {
             "WHERE g.branch.id = :branchId AND g.deleted = false")
     List<Group> findByBranchIdWithAllRelations(@Param("branchId") Long branchId);
 
+    @Query("SELECT DISTINCT g FROM Group g " +
+            "LEFT JOIN FETCH g.teacher " +
+            "LEFT JOIN FETCH g.branch " +
+            "LEFT JOIN FETCH g.students " +
+            "WHERE g.branch.id = :branchId AND g.deleted = false")
+    List<Group> findByBranchIdWithStudents(@Param("branchId") Long branchId);
+
     @Query("SELECT g FROM Group g " +
             "LEFT JOIN FETCH g.teacher " +
             "LEFT JOIN FETCH g.branch " +
