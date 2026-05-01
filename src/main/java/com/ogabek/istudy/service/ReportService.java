@@ -2,6 +2,7 @@ package com.ogabek.istudy.service;
 
 import com.ogabek.istudy.repository.ExpenseRepository;
 import com.ogabek.istudy.repository.PaymentRepository;
+import com.ogabek.istudy.repository.SaleRepository;
 import com.ogabek.istudy.repository.TeacherSalaryPaymentRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -19,6 +20,7 @@ public class ReportService {
     private final PaymentRepository paymentRepository;
     private final ExpenseRepository expenseRepository;
     private final TeacherSalaryPaymentRepository salaryPaymentRepository;
+    private final SaleRepository saleRepository;
 
     public Map<String, Object> getDailyExpenseReport(Long branchId, LocalDate date) {
         LocalDateTime startOfDay = date.atStartOfDay();
@@ -96,11 +98,13 @@ public class ReportService {
     }
 
     public Map<String, Object> getFinancialSummary(Long branchId, int year, int month) {
-        BigDecimal totalPayments = paymentRepository.sumMonthlyPayments(branchId, year, month);
+        BigDecimal studentPayments = paymentRepository.sumMonthlyPayments(branchId, year, month);
+        BigDecimal salesIncome = saleRepository.sumMonthly(branchId, year, month);
         BigDecimal regularExpenses = expenseRepository.sumMonthlyExpenses(branchId, year, month);
         BigDecimal salaryPayments = salaryPaymentRepository.sumMonthlySalaryPayments(branchId, year, month);
 
-        BigDecimal totalIncome = totalPayments != null ? totalPayments : BigDecimal.ZERO;
+        BigDecimal totalIncome = (studentPayments != null ? studentPayments : BigDecimal.ZERO)
+                .add(salesIncome != null ? salesIncome : BigDecimal.ZERO);
         BigDecimal totalExpenses = (regularExpenses != null ? regularExpenses : BigDecimal.ZERO)
                 .add(salaryPayments != null ? salaryPayments : BigDecimal.ZERO);
         BigDecimal netProfit = totalIncome.subtract(totalExpenses);
@@ -109,6 +113,8 @@ public class ReportService {
         summary.put("year", year);
         summary.put("month", month);
         summary.put("branchId", branchId);
+        summary.put("studentPayments", studentPayments != null ? studentPayments : BigDecimal.ZERO);
+        summary.put("salesIncome", salesIncome != null ? salesIncome : BigDecimal.ZERO);
         summary.put("totalIncome", totalIncome);
         summary.put("regularExpenses", regularExpenses != null ? regularExpenses : BigDecimal.ZERO);
         summary.put("salaryPayments", salaryPayments != null ? salaryPayments : BigDecimal.ZERO);
@@ -123,11 +129,13 @@ public class ReportService {
         LocalDateTime start = startDate.atStartOfDay();
         LocalDateTime end = endDate.atTime(LocalTime.MAX);
 
-        BigDecimal totalPayments = paymentRepository.sumPaymentsByDateRange(branchId, start, end);
+        BigDecimal studentPayments = paymentRepository.sumPaymentsByDateRange(branchId, start, end);
+        BigDecimal salesIncome = saleRepository.sumByDateRange(branchId, start, end);
         BigDecimal regularExpenses = expenseRepository.sumExpensesByDateRange(branchId, start, end);
         BigDecimal salaryPayments = salaryPaymentRepository.sumSalaryPaymentsByDateRange(branchId, start, end);
 
-        BigDecimal totalIncome = totalPayments != null ? totalPayments : BigDecimal.ZERO;
+        BigDecimal totalIncome = (studentPayments != null ? studentPayments : BigDecimal.ZERO)
+                .add(salesIncome != null ? salesIncome : BigDecimal.ZERO);
         BigDecimal totalExpenses = (regularExpenses != null ? regularExpenses : BigDecimal.ZERO)
                 .add(salaryPayments != null ? salaryPayments : BigDecimal.ZERO);
         BigDecimal netProfit = totalIncome.subtract(totalExpenses);
@@ -136,6 +144,8 @@ public class ReportService {
         summary.put("startDate", startDate);
         summary.put("endDate", endDate);
         summary.put("branchId", branchId);
+        summary.put("studentPayments", studentPayments != null ? studentPayments : BigDecimal.ZERO);
+        summary.put("salesIncome", salesIncome != null ? salesIncome : BigDecimal.ZERO);
         summary.put("totalIncome", totalIncome);
         summary.put("regularExpenses", regularExpenses != null ? regularExpenses : BigDecimal.ZERO);
         summary.put("salaryPayments", salaryPayments != null ? salaryPayments : BigDecimal.ZERO);
