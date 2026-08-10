@@ -31,6 +31,7 @@ public class CreatePaymentRequest {
 
     @NotNull(message = "To'lov yili majburiy")
     @Min(value = 2020, message = "Yil 2020 dan kichik bo'lmasligi kerak")
+    @Max(value = 2100, message = "Yil 2100 dan katta bo'lmasligi kerak")
     private Integer paymentYear;
 
     @NotNull(message = "To'lov oyi majburiy")

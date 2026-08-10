@@ -1,15 +1,19 @@
 package com.ogabek.istudy.controller;
 
 import com.ogabek.istudy.dto.request.CreateSalaryPaymentRequest;
+import com.ogabek.istudy.dto.request.ReverseSalaryPaymentRequest;
+import com.ogabek.istudy.dto.request.SalaryPeriodActionRequest;
 import com.ogabek.istudy.dto.response.SalaryCalculationDto;
 import com.ogabek.istudy.dto.response.TeacherSalaryHistoryDto;
 import com.ogabek.istudy.dto.response.TeacherSalaryPaymentDto;
+import com.ogabek.istudy.dto.response.TeacherSalaryPeriodDto;
 import com.ogabek.istudy.security.BranchAccessControl;
 import com.ogabek.istudy.service.TeacherSalaryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
@@ -24,13 +28,19 @@ public class TeacherSalaryController {
     private final TeacherSalaryService teacherSalaryService;
     private final BranchAccessControl branchAccessControl;
 
+    // ==================================================================
+    // Hisoblash (o'zgarmagan endpointlar)
+    // ==================================================================
+
     @GetMapping("/calculate/teacher/{teacherId}")
     public ResponseEntity<SalaryCalculationDto> calculateTeacherSalary(
             @PathVariable Long teacherId,
             @RequestParam int year,
-            @RequestParam int month) {
+            @RequestParam int month,
+            @RequestParam(required = false, defaultValue = "false") boolean includeDrift) {
 
-        SalaryCalculationDto calculation = teacherSalaryService.calculateTeacherSalary(teacherId, year, month);
+        SalaryCalculationDto calculation = teacherSalaryService.calculateTeacherSalary(teacherId, year, month,
+                includeDrift);
 
         if (!branchAccessControl.hasAccessToBranch(calculation.getBranchId())) {
             return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
@@ -53,6 +63,10 @@ public class TeacherSalaryController {
                 month);
         return ResponseEntity.ok(calculations);
     }
+
+    // ==================================================================
+    // Daftar yozuvlari (o'zgarmagan endpointlar)
+    // ==================================================================
 
     @PostMapping("/payments")
     public ResponseEntity<TeacherSalaryPaymentDto> createSalaryPayment(
@@ -129,9 +143,89 @@ public class TeacherSalaryController {
         return ResponseEntity.ok(remaining);
     }
 
+    /**
+     * Eskicha ishlaydi, lekin davr yopilgan bo'lsa yozuv o'chirilmaydi —
+     * o'rniga teskari yozuv qo'shiladi (tarix saqlanadi).
+     */
     @DeleteMapping("/payments/{paymentId}")
     public ResponseEntity<Void> deleteSalaryPayment(@PathVariable Long paymentId) {
         teacherSalaryService.deleteSalaryPayment(paymentId);
         return ResponseEntity.ok().build();
+    }
+
+    // ==================================================================
+    // Yangi: teskari yozuv
+    // ==================================================================
+
+    /** To'lovni bekor qiladi — o'chirmasdan, sababi bilan. */
+    @PostMapping("/payments/{paymentId}/reverse")
+    public ResponseEntity<TeacherSalaryPaymentDto> reverseSalaryPayment(
+            @PathVariable Long paymentId,
+            @Valid @RequestBody ReverseSalaryPaymentRequest request) {
+
+        TeacherSalaryPaymentDto reversal = teacherSalaryService.reverseSalaryPayment(paymentId, request.getReason());
+
+        if (!branchAccessControl.hasAccessToBranch(reversal.getBranchId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(reversal);
+    }
+
+    // ==================================================================
+    // Yangi: davr boshqaruvi
+    // ==================================================================
+
+    @GetMapping("/periods/teacher/{teacherId}")
+    public ResponseEntity<List<TeacherSalaryPeriodDto>> getPeriodsByTeacher(@PathVariable Long teacherId) {
+        List<TeacherSalaryPeriodDto> periods = teacherSalaryService.getPeriodsByTeacher(teacherId);
+
+        if (!periods.isEmpty() && !branchAccessControl.hasAccessToBranch(periods.get(0).getBranchId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(periods);
+    }
+
+    @GetMapping("/periods/teacher/{teacherId}/month")
+    public ResponseEntity<TeacherSalaryPeriodDto> getPeriod(
+            @PathVariable Long teacherId,
+            @RequestParam int year,
+            @RequestParam int month) {
+
+        TeacherSalaryPeriodDto period = teacherSalaryService.getPeriod(teacherId, year, month);
+
+        if (!branchAccessControl.hasAccessToBranch(period.getBranchId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        return ResponseEntity.ok(period);
+    }
+
+    /** Oyni qo'lda yopish — summani shu paytdan boshlab muzlatadi. */
+    @PostMapping("/periods/close")
+    public ResponseEntity<TeacherSalaryPeriodDto> closePeriod(
+            @Valid @RequestBody SalaryPeriodActionRequest request) {
+        if (!branchAccessControl.hasAccessToBranch(request.getBranchId())) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
+        TeacherSalaryPeriodDto period = teacherSalaryService.closePeriod(
+                request.getTeacherId(), request.getYear(), request.getMonth());
+        return ResponseEntity.ok(period);
+    }
+
+    /**
+     * Yopilgan oyni qayta ochish. Faqat SUPER_ADMIN, sabab majburiy —
+     * amal auditga yoziladi.
+     */
+    @PostMapping("/periods/reopen")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<TeacherSalaryPeriodDto> reopenPeriod(
+            @Valid @RequestBody SalaryPeriodActionRequest request) {
+
+        TeacherSalaryPeriodDto period = teacherSalaryService.reopenPeriod(
+                request.getTeacherId(), request.getYear(), request.getMonth(), request.getReason());
+        return ResponseEntity.ok(period);
     }
 }

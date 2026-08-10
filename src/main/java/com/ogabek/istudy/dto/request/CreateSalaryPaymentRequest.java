@@ -14,6 +14,7 @@ public class CreateSalaryPaymentRequest {
 
     @NotNull(message = "Yil majburiy")
     @Min(value = 2020, message = "Yil 2020 dan kichik bo'lmasligi kerak")
+    @Max(value = 2100, message = "Yil 2100 dan katta bo'lmasligi kerak")
     private Integer year;
 
     @NotNull(message = "Oy majburiy")
@@ -30,4 +31,21 @@ public class CreateSalaryPaymentRequest {
 
     @NotNull(message = "Filial majburiy")
     private Long branchId;
+
+    // ------------------------------------------------------------------
+    // Yangi, ixtiyoriy maydonlar — eski frontend ularsiz ham ishlaydi
+    // ------------------------------------------------------------------
+
+    /**
+     * Daftar yozuvining turi: {@code PAYOUT} (pul berildi) yoki {@code BONUS}
+     * (ishlab topilgan summaga qo'shimcha).
+     *
+     * <p>Yuborilmasa: {@code POST /payments} uchun {@code PAYOUT},
+     * {@code POST /subtract} uchun {@code DEDUCTION}.
+     */
+    private String type;
+
+    /** BONUS / DEDUCTION uchun sabab. Audit uchun saqlanadi. */
+    @Size(max = 500, message = "Sabab 500 harfdan kam bo'lishi kerak")
+    private String reason;
 }
